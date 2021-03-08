@@ -10,6 +10,8 @@ geometry calculation package)
 
 import logging
 log = logging.getLogger(__name__)
+import json
+import os
 
 
 def generate_plf(config_file, files=None, directory='.', table=None, extras={}):
@@ -26,8 +28,11 @@ def generate_plf(config_file, files=None, directory='.', table=None, extras={}):
         in the table and extras, extras has priority.
     """
 
-    from pds4_utils import pds4_utils
-    import json
+    try:
+        import pds4_utils
+    except ModuleNotFoundError:
+        log.error('pds4_utils module not available, please install before using psa_utils.geogen')
+        return None
 
     # build a database of PDS4 meta-data using the specific config file
     dbase = pds4_utils.Database(files=files, directory=directory, config_file=config_file)

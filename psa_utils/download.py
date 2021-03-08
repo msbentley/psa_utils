@@ -9,7 +9,7 @@ A module to download public PSA products
 import os
 import requests
 import re
-import lxml
+import pandas as pd
 from lxml import etree
 
 from . import pdap
@@ -20,6 +20,10 @@ log = logging.getLogger(__name__)
 
 
 def download_label_by_granule_uid(granule_uid, output_dir='.'):
+    """
+    Accepts a granule_uid returned from EPN-TAP (essentially a
+    LIDVID) and downloads it.
+    """
 
     label_url = get_label_urls([granule_uid])
     filename = os.path.basename(label_url)
@@ -72,28 +76,14 @@ def get_filename_from_cd(cd):
     return fname[0].strip('\"')
 
 
-def download_files(query, output_dir='.', use_dir=False, label_only=False):
-
-    psa_tap = tap.psa_tap()
-    psa_pdap = pdap.pdap()
-
-    products = psa_tap.query(query)
-    if products is None:
-        log.error('no products matching query')
-    for idx, product in products.iterrows():
-        if product.access_url is None:
-            continue
-
-
-
-def download_lid(lid, output_dir='.', unzip=True, tidy=True):
+def download_by_lid(lid, output_dir='.', unzip=True, tidy=True):
 
     query = "select access_url, granule_uid from epn_core where granule_uid like '%%{:s}%%'".format(lid)
-    download_products(query, output_dir, tidy)
+    download_by_query(query, output_dir, tidy)
 
 
 
-def download_products(query, output_dir='.', unzip=True, tidy=True):
+def download_by_query(query, output_dir='.', unzip=True, tidy=True):
     """
     Runs a query against the PSA's EPN-TAP interface. Any products which match,
     and are public (have a download URL) will be downloaded and the zips placed
@@ -103,7 +93,13 @@ def download_products(query, output_dir='.', unzip=True, tidy=True):
 
     from zipfile import ZipFile
 
-    psa_tap = tap.psa_tap()
+    psa_tap = tap.PsaTap()
+
+    if tidy and not unzip:
+        log.warning('cannot remove source files without decompressiong - setting tidy=False')
+        tidy = False
+
+    files = []
 
     products = psa_tap.query(query)
     if products is None:
@@ -112,7 +108,7 @@ def download_products(query, output_dir='.', unzip=True, tidy=True):
         log.error('queries have to return granule_uid and access_url for product download')
         raise ValueError
     for idx, product in products.iterrows():
-        product_id = product_id_from_granule_uid(product.granule_uid)
+        product_id = tap.product_id_from_granule_uid(product.granule_uid)
         if product.access_url == '':
             log.warning('skipping proprietary product {:s}'.format(product_id))
             continue
@@ -120,6 +116,8 @@ def download_products(query, output_dir='.', unzip=True, tidy=True):
             log.info('downloading product {:s}'.format(product_id))
             try:
                 local_file = download_file(product.access_url, output_dir=output_dir)
+                if not unzip:
+                    files.append(local_file)
             except:
                 log.error('failure to download {:s}, skipping'.format(product_id))
                 continue
@@ -127,24 +125,32 @@ def download_products(query, output_dir='.', unzip=True, tidy=True):
         if unzip:
             with ZipFile(local_file, 'r') as zipObj:
                 zipObj.extractall(output_dir)
+                filelist = zipObj.namelist()
+                for f in filelist:
+                    files.append(os.path.join(output_dir, f))
+
         if tidy:
             os.remove(local_file)
 
+        files = list(set(files))
+
+    return files
 
 def download_labels_by_query(query, output_dir='.'):
 
-    psa_tap = tap.psa_tap()
+    psa_tap = tap.PsaTap()
     products = psa_tap.query(query)
-    download_labels(products, output_dir)
+    if products is not None:
+        download_labels(products, output_dir)
 
     return
+
 
 def download_labels(epn_tap_df, output_dir='.'):
     """Accepts a DataFrame as returned by psa_tap.query, uses 
     get_label_urls to add applicable URLs to the DataFrame and
     then downloads each label to output_dir
     """
-    
     epn_tap_df = get_label_urls(epn_tap_df)
     for idx, url in epn_tap_df.label_url.iteritems():
         if url is None: # skip PDS3 or proprietary labels
@@ -161,8 +167,7 @@ def get_label_urls(epn_tap_df):
     For each bundle it retrieves the corresponding file list from PDAP
     and then adds the download URL for the label, returning the df.
 
-    Note that this will only work for PDS4 where labels can easy be
-    separated from data products.
+    Note that this will only work for detached labels!
     """
 
     epn_tap_df['label_url'] = None
@@ -170,44 +175,44 @@ def get_label_urls(epn_tap_df):
     epn_tap_df['pds4'] = epn_tap_df.granule_uid.apply(
             lambda uid: True if uid.startswith('urn:') else False)
 
-    pds4 = epn_tap_df[epn_tap_df.pds4]
+    epn_tap_df = epn_tap_df[epn_tap_df.access_url != ''] # remove proprietary entries
 
-    # In PDS4 granule_uid is the LIDVID, e.g.
-    # urn:esa:psa:em16_tgo_acs:data_partially_processed:acs_par_sc_tir_20180314t075959-20180314t115950-1365-6-048865::1.0
+    # add the bundle/dataset ID 
+    epn_tap_df['bundle'] = None
 
-    # The PDAP file service only works on datasets/bundles, so we have to query the whole thing:
-    # e.g. urn:esa:psa:em16_tgo_acs
+    epn_tap_df.loc[epn_tap_df.pds4, 'bundle'] = epn_tap_df[epn_tap_df.pds4].granule_gid.apply(lambda uid: ':'.join(uid.split(':')[0:4]))
+    epn_tap_df.loc[~epn_tap_df.pds4, 'bundle'] = epn_tap_df[~epn_tap_df.pds4].granule_gid.apply(lambda uid: uid.split(':')[0])
+    
+    psa_pdap = pdap.Pdap()
 
-    pds4['bundle'] = pds4.granule_uid.apply(lambda uid: ':'.join(uid.split(':')[0:4]))
-    pds4 = pds4[pds4.access_url != ''] # remove proprietary entries
-    psa_pdap = pdap()
-
-    for bundle in pds4.bundle.unique():
+    for bundle in epn_tap_df.bundle.unique():
 
         log.debug('querying files in bundle {:s}'.format(bundle))
         files = psa_pdap.get_files(bundle)
 
         # loop through products from the query that are in this bundle
-        bundle_products = pds4[pds4.bundle==bundle]
+        bundle_products = epn_tap_df[epn_tap_df.bundle==bundle]
         for idx, product in bundle_products.iterrows():
-                product_id = product_id_from_granule_uid(product.granule_uid)
-                product_files = files[files.ProductId==product_id]
+                product_id = tap.product_id_from_granule_uid(product.granule_uid)
+                product_files = files[files.ProductId==product_id].copy()
                 if len(product_files)==0:
                     log.error('could not find product {:s} in bundle {:s}'.format(product_id, bundle))
                     continue
 
-                # find the label
+                # get the extensions to identify labels
                 product_files['ext'] = product_files.Filename.apply(lambda x: os.path.splitext(x)[-1])
-                xml_files = product_files[product_files.ext.str.lower()=='.xml']
-                if len(xml_files)==0:
-                    log.error('could not find XML label for product {:s}'.format(product_id))
+
+                # note that PDS3 attached labels will be skipped!
+                label_files = product_files[product_files.ext.str.lower().isin(['.xml','.lbl'])]
+                if len(label_files)==0:
+                    log.error('could not find label for product {:s}'.format(product_id))
                     return None
-                elif len(xml_files)>1:
-                    log.error('more than one XML file found for product {:s}'.format(product_id))
+                elif len(label_files)>1:
+                    log.error('more than one file found for product {:s}'.format(product_id))
                     return None
                 else:
-                    epn_tap_df['label_url'].loc[idx] = xml_files.Reference.squeeze()
-        
+                    epn_tap_df.loc[idx, 'label_url'] = label_files.Reference.squeeze()
+
     return epn_tap_df
 
 
@@ -226,8 +231,8 @@ def read_label_by_url(label_url):
 
 def read_label_by_lid(lid):
 
-    query = "select access_url, granule_uid from epn_core where granule_uid like '%%{:s}%%'".format(lid)
-    psa_tap = tap.psa_tap()
+    query = "select access_url, granule_gid, granule_uid from epn_core where granule_uid like '%%{:s}%%'".format(lid)
+    psa_tap = tap.PsaTap()
     products = psa_tap.query(query)
     products = get_label_urls(products)
     root = read_label_by_url(products.label_url.squeeze())

@@ -12,35 +12,35 @@ import logging
 log = logging.getLogger(__name__)
 import os
 
-def select_files(wildcard, directory='.', recursive=False):
-    """Create a file list from a directory and wildcard - recusively if
-    recursive=True"""
+# def select_files(wildcard, directory='.', recursive=False):
+#     """Create a file list from a directory and wildcard - recusively if
+#     recursive=True"""
 
-    # recursive search
-    # result = [os.path.join(dp, f) for dp, dn, filenames in os.walk('.') for
-    # f in filenames if os.path.splitext(f)[1] == '.DAT']
+#     # recursive search
+#     # result = [os.path.join(dp, f) for dp, dn, filenames in os.walk('.') for
+#     # f in filenames if os.path.splitext(f)[1] == '.DAT']
 
-    if recursive:
-        selectfiles = locate(wildcard, directory)
-        filelist = [file for file in selectfiles]
-    else:
-        import glob
-        filelist = glob.glob(os.path.join(directory, wildcard))
+#     if recursive:
+#         selectfiles = locate(wildcard, directory)
+#         filelist = [file for file in selectfiles]
+#     else:
+#         import glob
+#         filelist = glob.glob(os.path.join(directory, wildcard))
 
-    filelist.sort()
+#     filelist.sort()
 
-    return filelist
+#     return filelist
 
 
-def locate(pattern, root_path):
-    """Returns a generator using os.walk and fnmatch to recursively
-    match files with pattern under root_path"""
+# def locate(pattern, root_path):
+#     """Returns a generator using os.walk and fnmatch to recursively
+#     match files with pattern under root_path"""
 
-    import fnmatch
+#     import fnmatch
 
-    for path, dirs, files in os.walk(os.path.abspath(root_path)):
-        for filename in fnmatch.filter(files, pattern):
-            yield os.path.join(path, filename)
+#     for path, dirs, files in os.walk(os.path.abspath(root_path)):
+#         for filename in fnmatch.filter(files, pattern):
+#             yield os.path.join(path, filename)
 
 
 def printtable(df, float_fmt=None):

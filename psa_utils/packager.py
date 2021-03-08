@@ -9,6 +9,7 @@ Packages PDS4 products into a delivery package for ingestion into the PSA
 from . import common
 
 import os
+import sys
 import pathlib
 import datetime
 import numpy as np
@@ -22,13 +23,13 @@ import logging
 log = logging.getLogger(__name__)
 
 try:
-    import pds4_utils
+    from pds4_utils import dbase
 except ModuleNotFoundError:
     log.error('pds4_utils module not available, please install before using psa_utils.packager')
 
 class Packager():
 
-    def __init__(self, products='*.xml', input_dir='.', recursive=True, output_dir='.', use_dir=False, clean=True):
+    def __init__(self, products='*.xml', input_dir='.', recursive=True, output_dir='.', template=None, use_dir=False, clean=True):
         """Initialise the packager class. Accepts the following:
 
         products - file pattern to match labels (*.xml default)
@@ -47,7 +48,9 @@ class Packager():
 
         # sequentially run everything we need to build the delivery package
         self.get_products()              # index the specified products, get bundle, collection, etc.
-        self.check_products()            # sanity checks - >1 bundle? etc.
+        if not self.check_products():    # sanity checks - >1 bundle? etc.
+            log.error('product checks failed, aborting')
+            return None
         self.get_delivery_name()         # build the delivery package name
 
         self.package_dir = os.path.join(self.output_dir, self.delivery_name)
@@ -56,7 +59,7 @@ class Packager():
         self.build_paths()               # build delivery paths, according to use_dir
         self.create_transfer_manifest()  # create the transfer manifest .tab file
         self.create_checksum_manifest()  # create the checksum manifest
-        self.create_label()              # flesh out the template PDS4 label
+        self.create_label(template=template)              # flesh out the template PDS4 label
         self.create_package(clean=clean)            # copy files into correct structure and build tarball
 
 
@@ -64,8 +67,7 @@ class Packager():
     def get_products(self):
         """Obtain the list of products to be packaged and also list data products"""
 
-
-        self.index = pds4_utils.index_products(directory=self.input_dir, pattern=self.products, recursive=self.recursive)
+        self.index = dbase.index_products(directory=self.input_dir, pattern=self.products, recursive=self.recursive)
 
 
     def check_products(self):
@@ -76,7 +78,7 @@ class Packager():
         # check for products from multiple bundles
         if len(self.index.bundle.unique()) > 1:
             log.error('cannot package products from more than one bundle - aborting!')
-            return None
+            return False
         else:
             self.bundle = self.index.bundle.unique()[0]
             self.mission = self.bundle.split('_')[0]
@@ -84,8 +86,7 @@ class Packager():
         # check for duplicate products
         if self.index.duplicated(['lid','vid']).sum() > 0:
             log.error('duplicated product LIDVIDs in this package - aborting!')
-            return None
-
+            return False
 
         # check that all referenced data files are present
         for idx, product in self.index.iterrows():
@@ -108,14 +109,14 @@ class Packager():
             for data_file in data_files:
                 if not pathlib.Path(os.path.join(product_file.parent, data_file.text)).exists():
                     log.error('cannot find data file {:s} referenced in product {:s}, aborting!'.format(data_file, product_file.name))
-                    return None
+                    return False
             self.data_files.update( {product.lid: [f.text for f in data_files]})
 
         if len(bad_products)>0:
             log.warn('{:d} products removed as invalid'.format(len(bad_products)))
             self.index.drop(bad_products, inplace=True)
 
-        return
+        return True
         
 
     def get_delivery_name(self):

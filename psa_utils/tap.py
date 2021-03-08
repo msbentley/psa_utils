@@ -8,8 +8,10 @@ A module to make TAP queries of the PSA
 
 from astropy.io.votable import parse_single_table
 from astroquery.utils.tap.core import Tap
+import pandas as pd
 from . import common
 import time
+from requests.exceptions import HTTPError
 
 job_wait_time = 2 # seconds
 job_wait_cycles = 10
@@ -19,25 +21,28 @@ log = logging.getLogger(__name__)
 logging.getLogger("astroquery").setLevel(logging.WARNING)
 
 
-class psa_tap:
+class PsaTap:
 
     def __init__(self, tap_url=psa_tap_url):
         """Establish a connection to the PSA TAP server"""
         self.tap = Tap(url=tap_url)
 
 
-    def query(self, q, sync=True):
+    def query(self, q, sync=True, dropna=True, verbose=False, job_wait_cycles=job_wait_cycles, job_wait_time=job_wait_time):
         """Make a simple query and return the data as a pandas DataFrame"""
         
         if sync:
             try:
-                data = self.tap.launch_job(q).get_data()
+                data = self.tap.launch_job(q, verbose=verbose).get_data()
             except ValueError as err:
-                log.error('query error: {:s}'.format(err))
+                log.error('query error: {0}'.format(err))
+                return None
+            except HTTPError as err:
+                log.error('http error: {0}'.format(err))
                 return None
             data = data.to_pandas()
         else:
-            job = self.tap.launch_job_async(q)
+            job = self.tap.launch_job_async(q, verbose=verbose)
             for i in range(job_wait_cycles):
                 time.sleep(job_wait_time)
                 if job.is_finished():
@@ -47,18 +52,20 @@ class psa_tap:
                 return None
             data = job.get_results().to_pandas()
 
+        if 'time_min' in data.columns:
+            data['time_min'] = pd.to_datetime(data['time_min'], origin='julian', unit='D') 
+
+        if 'time_max' in data.columns:
+            data['time_max'] = pd.to_datetime(data['time_max'], origin='julian', unit='D') 
+
+        if dropna:
+            data.dropna(inplace=True, axis=1, how='all')
+
         if len(data) == 2000:
             log.warn('results incomplete due to synchronous query limit - repeat with sync=false')
 
-        # work around the UTF-8 encoding of returned data
-        # 27/01/2021 - can be removed now!
-        # str_df = data.select_dtypes([np.object])
-        # if not str_df.empty:
-        #     str_df = str_df.stack().str.decode('utf-8').unstack()
-        #     for col in str_df:
-        #         data[col] = str_df[col]
+        return data# .squeeze()
 
-        return data
 
 def product_id_from_granule_uid(granule_uid):
     """Extracts ther PDS3 or PDS4 product ID from the granule_uid
@@ -73,15 +80,15 @@ def product_id_from_granule_uid(granule_uid):
 
 
 def get_missions():
-    tap = psa_tap()
+    tap = PsaTap()
     return tap.query('SELECT DISTINCT instrument_host_name from EPN_CORE').squeeze().tolist()
 
 def get_instruments():
-    tap = psa_tap()
+    tap = PsaTap()
     return tap.query('SELECT DISTINCT instrument_name from EPN_CORE').squeeze().tolist()
 
 def get_collections(bundle_id):
-     tap = psa_tap()
+     tap = PsaTap()
      return tap.query("select distinct granule_gid from epn_core where granule_gid like 'urn:esa:psa:{:s}:%%'".format(bundle_id))
 
 
@@ -93,7 +100,7 @@ def summarise_mission(mission_name, pretty=True):
         log.error('mission name {:s} not found'.format(mission_name))
         return None
     else:
-        tap = psa_tap()
+        tap = PsaTap()
         result = tap.query("SELECT instrument_name, count(*) FROM epn_core WHERE instrument_host_name='{:s}' GROUP BY instrument_name".format(mission[0]))
         if pretty:
             common.printtable(result)
@@ -108,7 +115,7 @@ def summarise_instrument(instrument_name, pretty=False):
         log.error('instrument name {:s} not found'.format(instrument_name))
         return None
     else:
-        tap = psa_tap()
+        tap = PsaTap()
         result = tap.query("SELECT processing_level, count(*) FROM epn_core WHERE instrument_name='{:s}' AND processing_level IS NOT NULL GROUP BY processing_level ORDER BY processing_level".format(instrument[0]))
         if pretty:
             common.printtable(result)

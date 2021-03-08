@@ -10,8 +10,16 @@ PSA internal members (archive scientists etc.)
 
 from . import common
 from . import packager
+import pathlib
 import logging
+import copy
+from lxml import etree
+import shutil
+import numpy as np
+import pandas as pd
+import datetime
 import yaml
+import os
 from io import BytesIO
 
 log = logging.getLogger(__name__)
@@ -24,12 +32,11 @@ proc_levels = {
     'cal': ('Calibrated', 'calibrated'),
     'der': ('Derived', 'derived')
 }
+
 class Ingest_Test():
     """A class for generating test products from a label and data product
     template and a configuration file specifying the instrument-specific
     data"""
-
-
 
     def __init__(self, config_file='ingestion_test.yml', template_label='test_product.xml', output_dir='.', package=False):
 
@@ -195,13 +202,13 @@ def build_context_json(config_file, input_dir='.', output_dir='.', json_name='lo
     pds4_utils.Database() is used to scrape meta-data according to the config_file.
     """
 
-    from pds4_utils import pds4_utils
+    from pds4_utils import dbase
     import json
 
     context = []
 
     # build a database of context product meta-data
-    dbase = pds4_utils.Database(files='*.xml', directory=input_dir, config_file=config_file)
+    dbase = dbase.Database(files='*.xml', directory=input_dir, config_file=config_file)
     table = dbase.get_table('context_bundle')
 
     if table is None:
@@ -247,6 +254,62 @@ def build_context_json(config_file, input_dir='.', output_dir='.', json_name='lo
     # write to a file - indent=4 gives pretty printing
     with open(json_file, 'w') as f:
         json.dump(context, f, indent=4)
+        log.info('written json file {:s}'.format(json_file))
 
     return 
 
+
+def collection_summary(config_file, input_dir='.', output_dir='.', context_dir='.'):
+    """
+    collection_summary accesses meta-data in a collection label
+    or referenced from it, to produce a set of summary information
+    needed to register a DOI and/or create a Google Dataset
+    Search landing page.
+    """
+
+    from pds4_utils import dbase
+
+    collection_db = dbase.Database(
+        files='collection_data*.xml', 
+        config_file=config_file, 
+        directory=input_dir, 
+        recursive=True)
+
+    collection_table = collection_db.get_table('collection')
+
+    # strip carriage returns from the description
+    collection_table.description = collection_table.description.apply(lambda desc: desc.replace('\n', ' '))
+
+    # make a string list of keywords
+    collection_table.keywords = collection_table.keywords.apply(lambda key: ', '.join(key))
+
+    context_db = dbase.Database(
+        files='*.xml', 
+        config_file=config_file, 
+        directory=context_dir, 
+        recursive=True)
+
+    context_table = context_db.get_table('context')
+    # timeformatter = lambda x: pd.to_datetime(x).strftime('%Y-%m-%d %H:%M:%S.%f')
+
+    for idx, entry in collection_table.iterrows():
+        out_name = entry.bundle+'_'+entry.collection+'.html'
+        out_file = os.path.join(output_dir, out_name)
+        collection_cols = collection_db.dbase['collection'].columns.to_list()
+
+        # tidy up some specific entries
+        if entry.mission_lid is not None:
+            mission_context = context_table[context_table.lid==entry.mission_lid]
+            mission_descr = mission_context.mission_desc.squeeze()
+            entry['mission_description'] = mission_descr.replace('\n', '')
+        else:
+            entry['mission_description'] = 'Mission description not found'
+            log.warning('mission description not found for LID: {:s}'.format(entry.mission_lid))
+        collection_cols.append('mission_description')
+        collection_cols.remove('mission_lid')
+
+        entry[collection_cols].to_frame().to_html(out_file, na_rep='')  
+            # formatters={'start': timeformatter, 'stop': timeformatter})
+        log.info('generated collection summary {:s}'.format(out_name))
+
+    

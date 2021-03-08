@@ -1,0 +1,82 @@
+
+bc_mpo_bela:
+  shortname: bel
+  fullname: BELA
+
+bc_mpo_berm:
+  shortname: ber
+  fullname: BERM
+
+bc_mpo_isa:
+  shortname: isa
+  fullname: ISA
+
+bc_mtm_mcam:
+  shortname: cam
+  fullname: MCAM
+  sub_instruments:
+    cam1: Imager
+    cam2: Imager
+    cam3: Imager
+
+bc_mpo_mag:
+  shortname: mag
+  fullname: MPO-MAG
+  sub_instruments:
+    IB: Magnetometer
+    OB: Magnetometer
+
+bc_mpo_mertis:
+  shortname: mer
+  fullname: MERTIS
+  sub_instruments:
+    tir: Spectrometer
+    tis: Spectrometer
+
+bc_mpo_mgns:
+  fullname: MGNS
+  shortname: mgn
+
+bc_mpo_mixs:
+  shortname: mix
+  fullname: MIXS
+  sub_instruments:
+    mixs-c: Spectrometer
+    mixs-t: Imaging spectrometer
+
+bc_mpo_more:
+  fullname: MORE
+  shortname: mre
+
+bc_mpo_phebus:
+  shortname: phe
+  fullname: PHEBUS
+  sub_instruments:
+    fuv: Spectrometer
+    euv: Spectrometer
+
+bc_mpo_serena:
+  shortname: srn
+  fullname: SERENA
+  sub_instruments:
+    picam: Mass spectrometer
+    strofio: Gas analyser
+    elena: Particle analyser
+    mipa: Particle analyser
+
+bc_mpo_simbio-sys:
+  shortname: sim
+  fullname: SIMBIO-SYS
+  sub_instruments:
+    vihi: Imaging spectrometer
+    stc: Imager
+    hric: Imager
+
+bc_mpo_sixs:
+  shortname: six
+  fullname: SIXS
+  sub_instruments:
+    sixs-X: Spectrometer
+    sixs-P: Particle analyser
+
+
