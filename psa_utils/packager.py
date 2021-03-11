@@ -29,7 +29,8 @@ except ModuleNotFoundError:
 
 class Packager():
 
-    def __init__(self, products='*.xml', input_dir='.', recursive=True, output_dir='.', template=None, use_dir=False, clean=True):
+    def __init__(self, products='*.xml', input_dir='.', recursive=True, output_dir='.', template=None, 
+        use_dir=False, clean=True, sendfrom=None, sendto=None):
         """Initialise the packager class. Accepts the following:
 
         products - file pattern to match labels (*.xml default)
@@ -51,7 +52,7 @@ class Packager():
         if not self.check_products():    # sanity checks - >1 bundle? etc.
             log.error('product checks failed, aborting')
             return None
-        self.get_delivery_name()         # build the delivery package name
+        self.get_delivery_name(sendfrom, sendto)         # build the delivery package name
 
         self.package_dir = os.path.join(self.output_dir, self.delivery_name)
         os.makedirs(self.package_dir, exist_ok=True)
@@ -119,13 +120,20 @@ class Packager():
         return True
         
 
-    def get_delivery_name(self):
+    def get_delivery_name(self, sendfrom=None, sendto=None):
 
-        # get mission acronym from bundle
-        #bundle = self.index.bundle.unique()[0]
-        # source = bundle.split('_')[0]
         self.delivery_time = datetime.datetime.now()
-        self.delivery_name = '{:s}psa-pds4-PI-01-{:s}-{:s}'.format(self.mission, self.bundle, self.delivery_time.strftime('%Y%m%dT%H%M%S'))
+
+        if sendfrom is None:
+            # get mission acronym from bundle
+            # bundle = self.index.bundle.unique()[0]
+            # source = bundle.split('_')[0]
+            sendfrom = self.mission
+        if sendto is None:
+            sendto = 'psa'
+
+
+        self.delivery_name = '{:s}{:s}-pds4-PI-01-{:s}-{:s}'.format(sendfrom, sendto, self.bundle, self.delivery_time.strftime('%Y%m%dT%H%M%S'))
 
 
     def build_paths(self):
