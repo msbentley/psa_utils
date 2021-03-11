@@ -9,6 +9,7 @@ A module to download public PSA products
 import os
 import requests
 import re
+import pathlib
 import pandas as pd
 from lxml import etree
 
@@ -44,9 +45,9 @@ def download_file(url, output_dir='.', output_file=None):
     If output_file is None, an attempt will be made to get the filename
     from the content-disposition header.
     """
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    
+    path = pathlib.Path(output_dir)
+    path.mkdir(parents=True, exist_ok=True)
 
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
@@ -55,11 +56,10 @@ def download_file(url, output_dir='.', output_file=None):
         else:
             filename = output_file
         local_filename = os.path.join(output_dir, filename)
-        log.debug('downloading file {:s}'.format(filename))
         with open(local_filename, 'wb') as f:
             for chunk in r.iter_content(chunk_size=8192): 
                 f.write(chunk)
-    log.info('downloaded file {:s}'.format(filename))
+    log.debug('downloaded file {:s}'.format(filename))
     return local_filename
 
 
