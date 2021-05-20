@@ -79,7 +79,8 @@ def get_filename_from_cd(cd):
 def download_by_lid(lid, output_dir='.', unzip=True, tidy=True):
 
     query = "select access_url, granule_uid from epn_core where granule_uid like '%%{:s}%%'".format(lid)
-    download_by_query(query, output_dir, tidy)
+    files = download_by_query(query, output_dir, tidy)
+    return files
 
 
 
