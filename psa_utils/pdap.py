@@ -7,20 +7,19 @@ Mark S. Bentley (mark@lunartech.org), 2021
 A module to make PDAP queries of the PSA
 """
 
-from astropy.io.votable import parse_single_table
+from astropy.io import votable
 
 psa_pdap_url = 'https://archives.esac.esa.int/psa/pdap'
 import logging
 import functools
 import requests
-import yaml
+import warnings
 import pandas as pd
 from io import BytesIO
 
 
 log = logging.getLogger(__name__)
-logging.getLogger("astropy").setLevel(logging.ERROR)
-
+warnings.simplefilter('ignore', category=votable.exceptions.VOTableSpecWarning)
 
 def exception(function):
     """
@@ -60,7 +59,7 @@ class Pdap:
                 'RESOURE_CLASS': 'DATA_SET'}) 
         r.raise_for_status()
 
-        table = parse_single_table(BytesIO(r.content), pedantic=False)
+        table = votable.parse_single_table(BytesIO(r.content), pedantic=False)
         data = pd.DataFrame(table.array.data)
         
         return data
@@ -77,7 +76,7 @@ class Pdap:
                 'RESOURCE_CLASS': 'PRODUCT',
                 'DATA_SET_ID': dataset_id}) 
         r.raise_for_status()
-        table = parse_single_table(BytesIO(r.content), pedantic=False)
+        table = votable.parse_single_table(BytesIO(r.content), pedantic=False)
         data = pd.DataFrame(table.array.data)
 
         # extract VIDs from the download url
@@ -95,7 +94,7 @@ class Pdap:
                 'RESOURCE_CLASS': 'PRODUCT',
                 'PRODUCT_ID': product_id}) 
         r.raise_for_status()
-        table = parse_single_table(BytesIO(r.content), pedantic=False)
+        table = votable.parse_single_table(BytesIO(r.content), pedantic=False)
         data = pd.DataFrame(table.array.data)
 
         # extract VIDs from the download url
@@ -113,7 +112,7 @@ class Pdap:
                 'RESOURCE_CLASS': 'PRODUCT',
                 'DATA_SET_ID': dataset_id}) 
         r.raise_for_status()
-        table = parse_single_table(BytesIO(r.content), pedantic=False)
+        table = votable.parse_single_table(BytesIO(r.content), pedantic=False)
         data = pd.DataFrame(table.array.data)
 
         return data
