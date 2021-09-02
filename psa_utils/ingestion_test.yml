@@ -54,6 +54,7 @@ bc_mpo_phebus:
   sub_instruments:
     fuv: Spectrometer
     euv: Spectrometer
+    nuv: Spectrometer
 
 bc_mpo_serena:
   shortname: srn
