@@ -8,6 +8,7 @@ dependencies:
   - lxml
   - astropy
   - astroquery
+  - pyvo
   - numpy
   - pandas
   - matplotlib
