@@ -8,6 +8,7 @@ PSA internal members (archive scientists etc.)
 
 """
 
+from tarfile import HeaderError
 from . import common
 from . import packager
 import pathlib
@@ -313,3 +314,28 @@ def collection_summary(config_file, input_dir='.', output_dir='.', context_dir='
         log.info('generated collection summary {:s}'.format(out_name))
 
     
+def deletion_request(input_file, output_dir='.', delete_browse=True):
+    """Accepts an input file generated from the PSA (<=6) table export
+    function and generates a PSA deletion request"""
+
+    import datetime
+    import tarfile
+
+    products = pd.read_table(input_file, delimiter=',', header=0)
+    bundles = products['Dataset Identifier'].unique()
+    for bundle in bundles:
+        bundle_name = bundle.split(':')[-1]
+        request_time = datetime.datetime.now()
+        deletion_name = 'bcpsa-pds4-pd-01-{:s}-{:s}'.format(bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
+        outfile = os.path.join(output_dir, deletion_name + '.tab')
+        products[['LID','Version']].to_csv(outfile, sep='\t', index=False, header=False)
+        tarball = os.path.join(output_dir, deletion_name + '.tar.gz')
+        with tarfile.open(tarball, "w:gz") as tar:
+            tar.add(outfile, arcname=deletion_name + '.tab', recursive=False)
+
+    # For MCAM we need to delete browse also.
+    # We have LID like:
+    # urn:esa:psa:bc_mtm_mcam:data_raw:cam_raw_sc_cam3_image_20210810t232126_48_f__t0010
+    #
+    # And browse like:
+    # urn:esa:psa:bc_mtm_mcam:browse:cam_raw_sc_cam3_browse_20210810t232126_48_f__t0010
