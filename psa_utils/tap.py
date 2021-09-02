@@ -7,7 +7,10 @@ A module to make TAP queries of the PSA
 """
 
 from astropy.io.votable import parse_single_table
-from astroquery.utils.tap.core import Tap
+# from astroquery.utils.tap.core import Tap
+# switching to PyVO since astroquery TAP doesn't support maxrecs
+# see https://github.com/astropy/astroquery/issues/1581
+import pyvo as vo
 import pandas as pd
 from . import common
 import time
@@ -25,7 +28,9 @@ class PsaTap:
 
     def __init__(self, tap_url=psa_tap_url):
         """Establish a connection to the PSA TAP server"""
-        self.tap = Tap(url=tap_url)
+        # self.tap = Tap(url=tap_url)
+        self.tap = vo.dal.TAPService(tap_url)
+
 
 
     def query(self, q, sync=True, dropna=True, verbose=False, job_wait_cycles=job_wait_cycles, job_wait_time=job_wait_time):
@@ -33,7 +38,7 @@ class PsaTap:
         
         if sync:
             try:
-                data = self.tap.launch_job(q, verbose=verbose).get_data()
+                data = self.tap.run_sync(q, maxrec=-1).to_table()
             except ValueError as err:
                 log.error('query error: {0}'.format(err))
                 return None
@@ -42,7 +47,9 @@ class PsaTap:
                 return None
             data = data.to_pandas()
         else:
-            job = self.tap.launch_job_async(q, verbose=verbose)
+            log.error('async jobs currently disabled')
+            return None
+            job = self.tap.run_async(q, maxrec=-1)
             for i in range(job_wait_cycles):
                 time.sleep(job_wait_time)
                 if job.is_finished():
