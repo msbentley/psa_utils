@@ -29,13 +29,13 @@ def generate_plf(config_file, files=None, directory='.', table=None, extras={}):
     """
 
     try:
-        import pds4_utils
+        from pds4_utils import dbase as db
     except ModuleNotFoundError:
         log.error('pds4_utils module not available, please install before using psa_utils.geogen')
         return None
 
     # build a database of PDS4 meta-data using the specific config file
-    dbase = pds4_utils.Database(files=files, directory=directory, config_file=config_file)
+    dbase = db.Database(files=files, directory=directory, config_file=config_file)
 
     # if the config file builds more than one table, we have to select this
     if table is None:
@@ -44,6 +44,9 @@ def generate_plf(config_file, files=None, directory='.', table=None, extras={}):
             log.error('there are >1 tables in the specified configuration, specify with table=')
             return None
         t = list(tables)
+        if len(t)==0:
+            log.error('no tables found, update the configuration file')
+            return None
         t = t[0]
 
     # get the column names from the "extra" meta-data
