@@ -10,7 +10,6 @@ import os
 import requests
 import re
 import pathlib
-import pandas as pd
 from lxml import etree
 
 from . import pdap
@@ -157,7 +156,7 @@ def download_labels(epn_tap_df, output_dir='.'):
         if url is None: # skip PDS3 or proprietary labels
             continue
         filename = os.path.basename(url)
-        download_file(url, output_dir='.', output_file=filename)
+        download_file(url, output_dir=output_dir, output_file=filename)
 
     return
 
