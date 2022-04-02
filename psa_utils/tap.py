@@ -14,6 +14,7 @@ import pyvo as vo
 import pandas as pd
 from . import common
 import time
+import numpy as np
 from requests.exceptions import HTTPError
 
 job_wait_time = 2 # seconds
@@ -45,7 +46,16 @@ class PsaTap:
             except HTTPError as err:
                 log.error('http error: {0}'.format(err))
                 return None
+
             data = data.to_pandas()
+            
+            # check for byte encoded (object) strings and decode to utf-8
+            for col, dtype in data.dtypes.items():
+                if dtype == np.object:
+                    # check if we really have bytes here or a string
+                    if not isinstance(data[col].iloc[0], str):
+                        data[col] = data[col].str.decode('utf-8')
+
         else:
             log.error('async jobs currently disabled')
             return None
@@ -90,9 +100,15 @@ def get_missions():
     tap = PsaTap()
     return tap.query('SELECT DISTINCT instrument_host_name from EPN_CORE').squeeze().tolist()
 
-def get_instruments():
+def get_instruments(mission=None):
     tap = PsaTap()
-    return tap.query('SELECT DISTINCT instrument_name from EPN_CORE').squeeze().tolist()
+
+    if mission is None:
+        instruments = tap.query('SELECT DISTINCT instrument_name from EPN_CORE').squeeze().tolist()
+    else:
+        instruments = tap.query("SELECT DISTINCT instrument_name from EPN_CORE where instrument_host_name='{:s}'".format(mission)).squeeze().tolist()
+
+    return instruments
 
 def get_collections(bundle_id):
      tap = PsaTap()
