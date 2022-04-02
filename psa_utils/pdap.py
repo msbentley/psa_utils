@@ -59,7 +59,7 @@ class Pdap:
                 'RESOURE_CLASS': 'DATA_SET'}) 
         r.raise_for_status()
 
-        table = votable.parse_single_table(BytesIO(r.content), pedantic=False)
+        table = votable.parse_single_table(BytesIO(r.content), verify=False)
         data = pd.DataFrame(table.array.data)
         
         return data
@@ -76,7 +76,7 @@ class Pdap:
                 'RESOURCE_CLASS': 'PRODUCT',
                 'DATA_SET_ID': dataset_id}) 
         r.raise_for_status()
-        table = votable.parse_single_table(BytesIO(r.content), pedantic=False)
+        table = votable.parse_single_table(BytesIO(r.content), verify=False)
         data = pd.DataFrame(table.array.data)
 
         # extract VIDs from the download url
@@ -94,7 +94,7 @@ class Pdap:
                 'RESOURCE_CLASS': 'PRODUCT',
                 'PRODUCT_ID': product_id}) 
         r.raise_for_status()
-        table = votable.parse_single_table(BytesIO(r.content), pedantic=False)
+        table = votable.parse_single_table(BytesIO(r.content), verify=False)
         data = pd.DataFrame(table.array.data)
 
         # extract VIDs from the download url
@@ -112,7 +112,7 @@ class Pdap:
                 'RESOURCE_CLASS': 'PRODUCT',
                 'DATA_SET_ID': dataset_id}) 
         r.raise_for_status()
-        table = votable.parse_single_table(BytesIO(r.content), pedantic=False)
+        table = votable.parse_single_table(BytesIO(r.content), verify=False)
         data = pd.DataFrame(table.array.data)
 
         return data
