@@ -642,7 +642,7 @@ def show_archive_status(mission, instrument=None):
             else:
                 log.warning('no private data found for {:s}'.format(instr))
 
-            ax.broken_barh(list(zip(start, duration)), (idx, 0.9), facecolors=colours)
+            ax.broken_barh(list(zip(start, duration)), (idx, 0.9), facecolors=colours, alpha=0.5)
 
         log.debug('Plot range: {:s} - {:s}'.format(min_date.strftime(date_format), max_date.strftime(date_format)))
         ax.set_xlim(min_date, max_date)
