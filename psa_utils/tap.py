@@ -48,6 +48,10 @@ class PsaTap:
                 return None
 
             data = data.to_pandas()
+
+            if data.empty:
+                log.warn('no results returned')
+                return None
             
             # check for byte encoded (object) strings and decode to utf-8
             for col, dtype in data.dtypes.items():
@@ -130,7 +134,7 @@ def summarise_mission(mission_name, pretty=True):
         return result
 
 
-def summarise_instrument(instrument_name, pretty=False):
+def summarise_instrument(instrument_name, ignore_levels=False, pretty=False):
  
     instruments = get_instruments()
     instrument = [name for name in instruments if name.lower()==instrument_name.lower()]
@@ -139,7 +143,11 @@ def summarise_instrument(instrument_name, pretty=False):
         return None
     else:
         tap = PsaTap()
-        result = tap.query("SELECT processing_level, count(*) FROM epn_core WHERE instrument_name='{:s}' AND processing_level IS NOT NULL GROUP BY processing_level ORDER BY processing_level".format(instrument[0]))
+
+        if ignore_levels:
+            result = tap.query("SELECT count(*) FROM epn_core WHERE instrument_name='{:s}'".format(instrument[0]))
+        else:
+            result = tap.query("SELECT processing_level, count(*) FROM epn_core WHERE instrument_name='{:s}' AND processing_level IS NOT NULL GROUP BY processing_level ORDER BY processing_level".format(instrument[0]))
         if pretty:
             common.printtable(result)
         return result
