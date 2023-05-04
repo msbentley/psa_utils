@@ -12,8 +12,11 @@ from socket import TCP_NODELAY
 from tarfile import HeaderError
 from . import common
 from . import packager
+from . import tap
 import pathlib
 import logging
+import datetime
+import tarfile
 import copy
 from lxml import etree
 from lxml import html
@@ -42,7 +45,9 @@ class Ingest_Test():
     template and a configuration file specifying the instrument-specific
     data"""
 
-    def __init__(self, config_file='ingestion_test.yml', template_label='test_product.xml', output_dir='.', package=False):
+    def __init__(self, config_file='ingestion_test.yml', template_label='test_product.xml', output_dir='.', package=False, lblx=False):
+
+        self.lblx=lblx
 
         # read the configuration file
         self.read_config(config_file)
@@ -66,7 +71,8 @@ class Ingest_Test():
 
         for bundle in self.config:
             prefix = self.config[bundle]['shortname']
-            packager.Packager(input_dir=output_dir,  output_dir=output_dir, products='{:s}*.xml'.format(prefix))
+            suffix = '.lblx' if self.lblx else '.xml'
+            packager.Packager(input_dir=output_dir,  output_dir=output_dir, products='{:s}*{:s}'.format(prefix, suffix))
 
 
     def read_config(self, config_file):
@@ -180,7 +186,8 @@ class Ingest_Test():
 
         def write_label(tree, output_dir, product_id):
 
-            label_out = os.path.join(output_dir, product_id + '.xml')
+            suffix = '.lblx' if self.lblx else '.xml'
+            label_out = os.path.join(output_dir, product_id + suffix)
             tree.write(label_out, xml_declaration=True, encoding=self.tree.docinfo.encoding) 
 
 #########################
@@ -301,8 +308,9 @@ def collection_summary(config_file, input_dir='.', output_dir=None, context_dir=
     # strip carriage returns from the description
     # collection_table.description = collection_table.description.apply(lambda desc: desc.replace('\n', ' '))
 
-    # make a string list of keywords
-    collection_table.keywords = collection_table.keywords.apply(lambda key: ', '.join(key))
+    # make a string list of keywords (if any)
+    if 'keywords' in collection_table.columns:
+        collection_table.keywords = collection_table.keywords.apply(lambda key: ', '.join(key))
 
     context_db = dbase.Database(
         files='*.xml', 
@@ -417,7 +425,7 @@ def doi_landing(config_file, template_file, input_dir='.', output_dir='.', conte
         # substitute the tags
         for tag in tag_names:
             template_temp = template_temp.replace('${{{:s}}}'.format(tag), vals[tag])
-        
+
         output_name = page['name'] + '.html'
         outfile = os.path.join(output_dir, output_name)
         f = open(outfile, 'w')
@@ -492,12 +500,9 @@ def doi_landing2(config_file, template_file, input_dir='.', output_dir='.', cont
 
 
     
-def deletion_request(input_file, output_dir='.', delete_browse=True):
+def deletion_request_csv(input_file, output_dir='.', delete_browse=True):
     """Accepts an input file generated from the PSA (<=6) table export
     function and generates a PSA deletion request"""
-
-    import datetime
-    import tarfile
 
     products = pd.read_table(input_file, delimiter=',', header=0, dtype={'Version': str})
     bundles = products['Dataset Identifier'].unique()
@@ -506,7 +511,8 @@ def deletion_request(input_file, output_dir='.', delete_browse=True):
         request_time = datetime.datetime.now()
         deletion_name = 'bcpsa-pds4-pd-01-{:s}-{:s}'.format(bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
         outfile = os.path.join(output_dir, deletion_name + '.tab')
-        products[['LID','Version']].to_csv(outfile, sep='\t', index=False, header=False)
+        product_list = products[['LID','Version']].drop_duplicates(keep='first')
+        product_list.to_csv(outfile, sep='\t', index=False, header=False)
         tarball = os.path.join(output_dir, deletion_name + '.tar.gz')
         with tarfile.open(tarball, "w:gz") as tar:
             tar.add(outfile, arcname=deletion_name + '.tab', recursive=False)
@@ -517,6 +523,67 @@ def deletion_request(input_file, output_dir='.', delete_browse=True):
     #
     # And browse like:
     # urn:esa:psa:bc_mtm_mcam:browse:cam_raw_sc_cam3_browse_20210810t232126_48_f__t0010
+
+
+def deletion_request_tap(query, dryrun=True, output_dir='.',
+    tap_url='https://archives.esac.esa.int/psa-tap/tap'):
+    """
+        Accepts either a single query (ADQL string) or a list of strings matching LIDs to delete.
+        Check_aux passes the query also to the auxiliary product table. Start and stop time will
+        limit the search by time (does not work for all aux products.
+
+        When dryrun=True no deletion request will be made, but a list of matching products will
+        be displayed.
+    """
+
+    if isinstance(query, str):
+        query = [query]
+    elif isinstance(query, list):
+        pass
+    else:
+        log.error('query has to be either a string, or a list of strings')
+        return None
+        
+    t = tap.PsaTap(tap_url=tap_url)
+    results = []
+    for q in query:
+        try:
+            results.append(t.query(q))
+        except:
+            log.error('query error')
+            return None
+
+    if not any(results):
+        log.warning('no matches found - not deletion request generated')
+        return None
+    
+    results = pd.concat(results)
+    results['bundle'] = results.logical_identifier.apply(lambda lid: lid.split(':')[3])
+
+    bundles = results.bundle.unique()
+    if len(bundles)>1:
+        log.error('deletions from more than one bundle not allowed - make separate queries')
+        return None
+
+    bundle = bundles[0]
+
+    bundle_name = bundle.split(':')[-1]
+    request_time = datetime.datetime.now()
+    deletion_name = 'bcpsa-pds4-pd-01-{:s}-{:s}'.format(bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
+    outfile = os.path.join(output_dir, deletion_name + '.tab')
+    product_list = results[['logical_identifier','version_id']].drop_duplicates(keep='first')
+
+    if dryrun:
+        log.info('this request would delete {:d} products'.format(len(product_list)))
+        print(product_list)
+        return
+    else:
+        product_list.to_csv(outfile, sep='\t', index=False, header=False)
+        tarball = os.path.join(output_dir, deletion_name + '.tar.gz')
+        with tarfile.open(tarball, "w:gz") as tar:
+            tar.add(outfile, arcname=deletion_name + '.tab', recursive=False)
+
+    return 
 
 
 
