@@ -19,7 +19,7 @@ from requests.exceptions import HTTPError
 
 job_wait_time = 2 # seconds
 job_wait_cycles = 10
-psa_tap_url = 'https://archives.esac.esa.int/psa/epn-tap/tap/'
+psa_tap_url = 'https://archives.esac.esa.int/psa-tap/tap/'
 import logging
 log = logging.getLogger(__name__)
 logging.getLogger("astroquery").setLevel(logging.WARNING)
@@ -55,7 +55,7 @@ class PsaTap:
             
             # check for byte encoded (object) strings and decode to utf-8
             for col, dtype in data.dtypes.items():
-                if dtype == np.object:
+                if dtype == np.object_:
                     # check if we really have bytes here or a string
                     if not isinstance(data[col].iloc[0], str):
                         data[col] = data[col].str.decode('utf-8')
