@@ -199,7 +199,7 @@ class Packager():
 
         checksum_file = self.delivery_name + '-checksum_manifest.tab'
         self.checksum_file = os.path.join(self.package_dir, checksum_file)
-        checksum.to_csv(self.checksum_file, line_terminator='\r\n', sep='\t', header=False, index=False)
+        checksum.to_csv(self.checksum_file, lineterminator='\r\n', sep='\t', header=False, index=False)
         
         self.checksum_records = len(checksum)
 
