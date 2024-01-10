@@ -132,6 +132,8 @@ class Packager():
         if sendto is None:
             sendto = 'psa'
 
+        if self.bundle=='psa_master':
+            self.bundle='psa'
 
         self.delivery_name = '{:s}{:s}-pds4-PI-01-{:s}-{:s}'.format(sendfrom, sendto, self.bundle, self.delivery_time.strftime('%Y%m%dT%H%M%S'))
 
