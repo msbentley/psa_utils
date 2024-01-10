@@ -1,10 +1,10 @@
-name: Publish to PyPi and TestPyPi
+name: Publish tagged versions to PyPi
 
 on: push
 
 jobs:
   build-n-publish:
-    name: Build and publish to PyPI and TestPyPI
+    name: Publish tagged versions to PyPi
     runs-on: ubuntu-latest
 
     steps:
