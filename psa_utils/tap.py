@@ -27,9 +27,10 @@ logging.getLogger("astroquery").setLevel(logging.WARNING)
 
 class PsaTap:
 
-    def __init__(self, tap_url=psa_tap_url):
+    def __init__(self, tap_url=psa_tap_url, proxy=None):
         """Establish a connection to the PSA TAP server"""
         # self.tap = Tap(url=tap_url)
+        self.proxy = None if proxy is None else dict(http='socks5h://{:s}'.format(proxy),https='socks5h://{:s}'.format(proxy))
         self.tap = vo.dal.TAPService(tap_url)
 
 
@@ -39,7 +40,7 @@ class PsaTap:
         
         if sync:
             try:
-                data = self.tap.run_sync(q, maxrec=-1).to_table()
+                data = self.tap.run_sync(q, maxrec=-1, proxies=self.proxy).to_table()
             except ValueError as err:
                 log.error('query error: {0}'.format(err))
                 return None
