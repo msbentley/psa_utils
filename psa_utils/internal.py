@@ -253,7 +253,7 @@ def build_context_json(config_file, input_dir='.', output_dir='.', json_name='lo
         else:
             prod_type = product['type']
         
-        if type(prod_type) == np.float:
+        if type(prod_type) == float:
             if pd.isna(prod_type):
                 prod_type = ['N/A']
 
@@ -265,7 +265,7 @@ def build_context_json(config_file, input_dir='.', output_dir='.', json_name='lo
 
         # the json needs name, type, and lidvid
         c['type'] = t
-        c['name'] = [product['name']]
+        c['name'] = ['N/A'] if product['name'] is None else [product['name']]
         c['lidvid'] = "{:s}::{:s}".format(product.lid, product.vid)
 
         context.append(c)
@@ -509,7 +509,8 @@ def deletion_request_csv(input_file, output_dir='.', delete_browse=True):
     for bundle in bundles:
         bundle_name = bundle.split(':')[-1]
         request_time = datetime.datetime.now()
-        deletion_name = 'bcpsa-pds4-pd-01-{:s}-{:s}'.format(bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
+        mission_name = bundle_name.split('_')[0]
+        deletion_name = '{:s}psa-pds4-pd-01-{:s}-{:s}'.format(mission_name, bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
         outfile = os.path.join(output_dir, deletion_name + '.tab')
         product_list = products[['LID','Version']].drop_duplicates(keep='first')
         product_list.to_csv(outfile, sep='\t', index=False, header=False)
@@ -526,7 +527,7 @@ def deletion_request_csv(input_file, output_dir='.', delete_browse=True):
 
 
 def deletion_request_tap(query, dryrun=True, output_dir='.',
-    tap_url='https://archives.esac.esa.int/psa-tap/tap'):
+    tap_url='https://archives.esac.esa.int/psa-tap/tap', proxy=None):
     """
         Accepts either a single query (ADQL string) or a list of strings matching LIDs to delete.
         Check_aux passes the query also to the auxiliary product table. Start and stop time will
@@ -544,7 +545,7 @@ def deletion_request_tap(query, dryrun=True, output_dir='.',
         log.error('query has to be either a string, or a list of strings')
         return None
         
-    t = tap.PsaTap(tap_url=tap_url)
+    t = tap.PsaTap(tap_url=tap_url, proxy=proxy)
     results = []
     for q in query:
         try:
@@ -553,8 +554,8 @@ def deletion_request_tap(query, dryrun=True, output_dir='.',
             log.error('query error')
             return None
 
-    if not any(results):
-        log.warning('no matches found - not deletion request generated')
+    if all(v is None for v in results):
+        log.warning('no matches found - no deletion request generated')
         return None
     
     results = pd.concat(results)
@@ -569,7 +570,8 @@ def deletion_request_tap(query, dryrun=True, output_dir='.',
 
     bundle_name = bundle.split(':')[-1]
     request_time = datetime.datetime.now()
-    deletion_name = 'bcpsa-pds4-pd-01-{:s}-{:s}'.format(bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
+    mission_name = bundle_name.split('_')[0]
+    deletion_name = '{:s}psa-pds4-pd-01-{:s}-{:s}'.format(mission_name, bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
     outfile = os.path.join(output_dir, deletion_name + '.tab')
     product_list = results[['logical_identifier','version_id']].drop_duplicates(keep='first')
 
