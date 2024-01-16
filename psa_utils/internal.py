@@ -143,15 +143,14 @@ class Ingest_Test():
             
             today = datetime.datetime.today()
             
-
-
+            agency_prefix = ':'.join(root.xpath('//pds:Identification_Area/pds:logical_identifier', namespaces=self.ns)[0].text.split(':')[0:3])
 
             # update the template with the mission/instrument-relevant values
 
-            root.xpath('//pds:Identification_Area/pds:logical_identifier', namespaces=self.ns)[0].text = 'urn:esa:psa:{:s}:data_{:s}:{:s}'.format(bundle, proc_levels[level][1], product_id)
+            root.xpath('//pds:Identification_Area/pds:logical_identifier', namespaces=self.ns)[0].text = '{:s}:{:s}:data_{:s}:{:s}'.format(agency_prefix, bundle, proc_levels[level][1], product_id)
             root.xpath('//pds:Identification_Area/pds:version_id', namespaces=self.ns)[0].text = '1.{:d}{:02d}'.format(today.year, today.month)
             root.xpath('//pds:Identification_Area/pds:Modification_History/pds:Modification_Detail/pds:modification_date', namespaces=self.ns)[0].text =today.strftime('%Y-%m-%d')
-            root.xpath("//pds:Observing_System_Component[pds:type='Instrument']/pds:Internal_Reference/pds:lid_reference", namespaces=self.ns)[0].text = 'urn:esa:psa:context:instrument:{:s}.{:s}'.format(host, instrument)
+            root.xpath("//pds:Observing_System_Component[pds:type='Instrument']/pds:Internal_Reference/pds:lid_reference", namespaces=self.ns)[0].text = '{:s}:context:instrument:{:s}.{:s}'.format(agency_prefix, host, instrument)
             root.xpath("//pds:Observing_System_Component[pds:type='Instrument']/pds:name", namespaces=self.ns)[0].text = self.config[bundle]['fullname']
             root.xpath("//pds:Investigation_Area/pds:Internal_Reference[pds:reference_type='data_to_investigation']/pds:lid_reference", namespaces=self.ns)[0].text = 'urn:esa:psa:context:investigation:mission.{:s}'.format(mission)
             root.xpath("//pds:File_Area_Observational/pds:File/pds:file_name", namespaces=self.ns)[0].text = product_id + data_file.suffix
