@@ -181,6 +181,8 @@ class Ingest_Test():
                     # insert the new sub-instrument element into the mission element
                     mission.insert(idx, sub)
 
+                    # TODO: handle instruments with multiple types, comma-separated in the yaml?
+
             return root
 
         def write_label(tree, output_dir, product_id):
@@ -577,7 +579,7 @@ def deletion_request_tap(query, dryrun=True, output_dir='.',
     if dryrun:
         log.info('this request would delete {:d} products'.format(len(product_list)))
         print(product_list)
-        return
+        return product_list
     else:
         product_list.to_csv(outfile, sep='\t', index=False, header=False)
         tarball = os.path.join(output_dir, deletion_name + '.tar.gz')
