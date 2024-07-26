@@ -103,21 +103,21 @@ def product_id_from_granule_uid(granule_uid):
 
 def get_missions():
     tap = PsaTap()
-    return tap.query('SELECT DISTINCT instrument_host_name from EPN_CORE').squeeze().tolist()
+    return tap.query('SELECT DISTINCT instrument_host_name from psa.epn_core').squeeze().tolist()
 
 def get_instruments(mission=None):
     tap = PsaTap()
 
     if mission is None:
-        instruments = tap.query('SELECT DISTINCT instrument_name from EPN_CORE').squeeze().tolist()
+        instruments = tap.query('SELECT DISTINCT instrument_name from psa.epn_core').squeeze().tolist()
     else:
-        instruments = tap.query("SELECT DISTINCT instrument_name from EPN_CORE where instrument_host_name='{:s}'".format(mission)).squeeze().tolist()
+        instruments = tap.query("SELECT DISTINCT instrument_name from psa.epn_core where instrument_host_name='{:s}'".format(mission)).squeeze().tolist()
 
     return instruments
 
 def get_collections(bundle_id):
      tap = PsaTap()
-     return tap.query("select distinct granule_gid from epn_core where granule_gid like 'urn:esa:psa:{:s}:%%'".format(bundle_id))
+     return tap.query("select distinct granule_gid from psa.epn_core where granule_gid like 'urn:esa:psa:{:s}:%%'".format(bundle_id))
 
 
 def summarise_mission(mission_name, pretty=True):
@@ -129,7 +129,7 @@ def summarise_mission(mission_name, pretty=True):
         return None
     else:
         tap = PsaTap()
-        result = tap.query("SELECT instrument_name, count(*) FROM epn_core WHERE instrument_host_name='{:s}' GROUP BY instrument_name".format(mission[0]))
+        result = tap.query("SELECT instrument_name, count(*) FROM psa.epn_core WHERE instrument_host_name='{:s}' GROUP BY instrument_name".format(mission[0]))
         if pretty:
             common.printtable(result)
         return result
@@ -146,9 +146,9 @@ def summarise_instrument(instrument_name, ignore_levels=False, pretty=False):
         tap = PsaTap()
 
         if ignore_levels:
-            result = tap.query("SELECT count(*) FROM epn_core WHERE instrument_name='{:s}'".format(instrument[0]))
+            result = tap.query("SELECT count(*) FROM psa.epn_core WHERE instrument_name='{:s}'".format(instrument[0]))
         else:
-            result = tap.query("SELECT processing_level, count(*) FROM epn_core WHERE instrument_name='{:s}' AND processing_level IS NOT NULL GROUP BY processing_level ORDER BY processing_level".format(instrument[0]))
+            result = tap.query("SELECT processing_level, count(*) FROM psa.epn_core WHERE instrument_name='{:s}' AND processing_level IS NOT NULL GROUP BY processing_level ORDER BY processing_level".format(instrument[0]))
         if pretty:
             common.printtable(result)
         return result
