@@ -30,7 +30,7 @@ except ModuleNotFoundError:
 class Packager():
 
     def __init__(self, products='*.xml', input_dir='.', recursive=True, output_dir='.', template=None, 
-        use_dir=False, clean=True, sendfrom=None, sendto=None):
+        use_dir=False, clean=True, sendfrom=None, sendto=None, allow_missing=False):
         """Initialise the packager class. Accepts the following:
 
         products - file pattern to match labels (*.xml default)
@@ -46,6 +46,7 @@ class Packager():
         self.use_dir = use_dir
         self.index = None
         self.data_files = {}
+        self.allow_missing = allow_missing
 
         # sequentially run everything we need to build the delivery package
         self.get_products()              # index the specified products, get bundle, collection, etc.
@@ -107,12 +108,16 @@ class Packager():
 
             # data_files =  root.xpath('//pds:File/pds:file_name', namespaces=ns)
             data_files =  root.xpath('//pds:file_name', namespaces=ns)
+            missing_files = []
             for data_file in data_files:
                 if not pathlib.Path(os.path.join(product_file.parent, data_file.text)).exists():
-                    log.error('cannot find data file {:s} referenced in product {:s}, aborting!'.format(data_file, product_file.name))
-                    return False
-            self.data_files.update( {product.lid: [f.text for f in data_files]})
-
+                    if self.allow_missing:
+                        log.warning('cannot find data file {:s} referenced in product {:s}!'.format(data_file.text, product_file.name))
+                        missing_files.append(data_file)
+                    else:
+                        log.error('cannot find data file {:s} referenced in product {:s}, aborting!'.format(data_file.text, product_file.name))
+                        return False
+            self.data_files.update( {product.lid: [f.text for f in data_files if f not in missing_files]})
         if len(bad_products)>0:
             log.warn('{:d} products removed as invalid'.format(len(bad_products)))
             self.index.drop(bad_products, inplace=True)
