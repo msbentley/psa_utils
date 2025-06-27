@@ -148,7 +148,10 @@ class Packager():
 
             if not self.use_dir:
                 # simply use the bundle/collection root
-                self.index.path.loc[idx] = os.path.join(product.bundle, product.collection, label.name)
+                if product.collection is None:
+                    self.index.path.loc[idx] = os.path.join(product.bundle, label.name)
+                else:
+                    self.index.path.loc[idx] = os.path.join(product.bundle, product.collection, label.name)
             else:
                 # use the path relative to the input directory
                 self.index.path.loc[idx] = os.path.join(product.bundle, os.path.relpath(label, start=self.input_dir))
