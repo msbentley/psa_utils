@@ -9,7 +9,6 @@ Packages PDS4 products into a delivery package for ingestion into the PSA
 from . import common
 
 import os
-import sys
 import pathlib
 import datetime
 import numpy as np
@@ -30,14 +29,25 @@ except ModuleNotFoundError:
 class Packager():
 
     def __init__(self, products='*.xml', input_dir='.', recursive=True, output_dir='.', template=None, 
-        use_dir=False, clean=True, sendfrom=None, sendto=None, allow_missing=False):
+        use_dir=False, clean=True, sendfrom=None, sendto=None, allow_missing=False, bundle_delivery=False):
         """Initialise the packager class. Accepts the following:
 
         products - file pattern to match labels (*.xml default)
         input_dir - the root directory for the labels (default=.)
+        recursive - if true, subdirectories will be crawled recursively
+        output_dir - location of the output tarball
+        template - if None, bundled product_delivery_template.xml is used
         use_dir - uses the product directory structure for the archive
             (if false, a minimal structure will be adopted)
-        clean - if True, removes the generated files are generating the tarball"""
+        clean - if True, removes the generated files are generating the tarball
+        sendfrom - customise the from part of the delivery package name
+            (if None, the mission is inferred from the bundle)
+        sendto - customise the to part of the delivery package name
+            (if None, PSA is assumed)
+        allow_missing - if true any missing data files will be ignored
+            (useful when packaging a collection label without inventory)
+        bundle_delivery - if true, the bundle delivery flag is set
+        """
 
         self.products = products
         self.input_dir = input_dir
@@ -47,6 +57,7 @@ class Packager():
         self.index = None
         self.data_files = {}
         self.allow_missing = allow_missing
+        self.delivery_type = 'D' if bundle_delivery else 'P'
 
         # sequentially run everything we need to build the delivery package
         self.get_products()              # index the specified products, get bundle, collection, etc.
@@ -140,7 +151,7 @@ class Packager():
         if self.bundle=='psa_master':
             self.bundle='psa'
 
-        self.delivery_name = '{:s}{:s}-pds4-PI-01-{:s}-{:s}'.format(sendfrom, sendto, self.bundle, self.delivery_time.strftime('%Y%m%dT%H%M%S'))
+        self.delivery_name = '{:s}{:s}-pds4-{:s}I-01-{:s}-{:s}'.format(sendfrom, sendto, self.delivery_type, self.bundle, self.delivery_time.strftime('%Y%m%dT%H%M%S'))
 
 
     def build_paths(self):
