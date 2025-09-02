@@ -1,0 +1,8 @@
+Product_Context:
+
+  context_bundle:
+    lid: ""
+    keywords:
+      type: "//pds:type"
+      ctli_type: "//ctli:type"
+      name: "//pds:name"
