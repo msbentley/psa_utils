@@ -320,7 +320,6 @@ def collection_summary(config_file, input_dir='.', output_dir=None, context_dir=
         recursive=True)
 
     context_table = context_db.get_table('context')
-    # timeformatter = lambda x: pd.to_datetime(x).strftime('%Y-%m-%d %H:%M:%S.%f')
 
     meta = []
 
@@ -340,9 +339,15 @@ def collection_summary(config_file, input_dir='.', output_dir=None, context_dir=
 
         # clean up tabs, carriage returns and whitespace!!
         # entry.description = entry.description.replace('\n', '')
-        #entry.description = entry.description.replace('\t', '').strip()
+        # entry.description = entry.description.replace('\t', '').strip()
         collection_cols.append('mission_description')
         collection_cols.remove('mission_lid')
+
+        if entry.start is None:
+            entry.start = 'N/A'
+        if entry.stop is None:
+            entry.stop = 'N/A'
+
         if output_dir is None:
             meta.append(entry[collection_cols])
         else:
@@ -350,9 +355,8 @@ def collection_summary(config_file, input_dir='.', output_dir=None, context_dir=
             out_file = os.path.join(output_dir, out_name)
             entry[collection_cols].to_frame().to_html(out_file, na_rep='')  
                 # formatters={'start': timeformatter, 'stop': timeformatter})
-        
+
         log.info('generated collection summary {:s}'.format(entry.lid))
-        print('generated collection summary {:s}'.format(entry.lid))
 
     if output_dir is None:
         return meta
