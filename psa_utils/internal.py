@@ -284,7 +284,7 @@ def build_context_json(config_file, input_dir='.', output_dir='.', json_name='lo
     return 
 
 
-def collection_summary(config_file, input_dir='.', output_dir=None, context_dir='.'):
+def collection_summary(config_file, input_dir='.', input_pattern='collection_data*.lblx', output_dir=None, context_dir='.'):
     """
     collection_summary accesses meta-data in a collection label
     or referenced from it, to produce a set of summary information
@@ -299,7 +299,7 @@ def collection_summary(config_file, input_dir='.', output_dir=None, context_dir=
     from pds4_utils import dbase
 
     collection_db = dbase.Database(
-        files='collection_data*.xml', 
+        files=input_pattern, 
         config_file=config_file, 
         directory=input_dir, 
         recursive=False)
@@ -362,7 +362,7 @@ def collection_summary(config_file, input_dir='.', output_dir=None, context_dir=
         return meta
 
 
-def doi_landing(config_file, template_file, input_dir='.', output_dir='.', context_dir='.'):
+def doi_landing(config_file, template_file, input_dir='.', input_pattern='collection_data*.lblx', output_dir='.', context_dir='.'):
     """DOI landing page generation using a marked-up version of the html template"""
 
     import re
@@ -372,7 +372,7 @@ def doi_landing(config_file, template_file, input_dir='.', output_dir='.', conte
     mission_paths = {
         'em16': 'ExoMars2016',
         'bc': 'BepiColombo',
-        'juice': 'JUICE'
+        'juice': 'Juice'
     }
 
     mission_logos = {
@@ -384,7 +384,7 @@ def doi_landing(config_file, template_file, input_dir='.', output_dir='.', conte
     split_threshold = 2000 # characters
 
     # read the collection meta-data
-    pages = collection_summary(config_file, input_dir, output_dir=None, context_dir=context_dir)
+    pages = collection_summary(config_file, input_dir, input_pattern, output_dir=None, context_dir=context_dir)
 
     # open the customised template html, read, and close it
     f = open(template_file, 'r')
