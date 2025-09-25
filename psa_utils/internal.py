@@ -326,7 +326,7 @@ def collection_summary(config_file, input_dir='.', input_pattern='collection_dat
     for idx, entry in collection_table.iterrows():
 
         collection_cols = collection_db.dbase['collection'].columns.to_list()
-        collection_cols.extend(['lid', 'bundle', 'collection', 'vid'])
+        collection_cols.extend(['lid', 'bundle', 'collection', 'vid', 'author_list'])
 
         # tidy up some specific entries
         if entry.mission_lid is not None:
@@ -337,12 +337,19 @@ def collection_summary(config_file, input_dir='.', input_pattern='collection_dat
             entry['mission_description'] = 'Mission description not found'
             log.warning('mission description not found for LID: {:s}'.format(entry.mission_lid))
 
+        author_list = []
+        for firstname, lastname in zip(entry.author_given_name, entry.author_family_name):
+            author_list.append('{:s} {:s}'.format(firstname, lastname))
+        entry['author_list'] =  ', '.join(author_list)
+
         # clean up tabs, carriage returns and whitespace!!
         # entry.description = entry.description.replace('\n', '')
         # entry.description = entry.description.replace('\t', '').strip()
         collection_cols.append('mission_description')
         collection_cols.remove('mission_lid')
-
+        collection_cols.remove('author_given_name')
+        collection_cols.remove('author_family_name')
+        
         if entry.start is None:
             entry.start = 'N/A'
         if entry.stop is None:
@@ -355,7 +362,7 @@ def collection_summary(config_file, input_dir='.', input_pattern='collection_dat
             out_file = os.path.join(output_dir, out_name)
             entry[collection_cols].to_frame().to_html(out_file, na_rep='')  
                 # formatters={'start': timeformatter, 'stop': timeformatter})
-
+        
         log.info('generated collection summary {:s}'.format(entry.lid))
 
     if output_dir is None:
