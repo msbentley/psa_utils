@@ -284,7 +284,7 @@ def build_context_json(config_file, input_dir='.', output_dir='.', json_name='lo
     return 
 
 
-def collection_summary(config_file, input_dir='.', input_pattern='collection_data*.lblx', output_dir=None, context_dir='.'):
+def collection_summary(config_file, input_dir='.', input_pattern='*.lblx', output_dir=None, context_dir='.'):
     """
     collection_summary accesses meta-data in a collection label
     or referenced from it, to produce a set of summary information
@@ -314,10 +314,10 @@ def collection_summary(config_file, input_dir='.', input_pattern='collection_dat
         collection_table.keywords = collection_table.keywords.apply(lambda key: ', '.join(key))
 
     context_db = dbase.Database(
-        files='*.xml', 
+        files=input_pattern, 
         config_file=config_file, 
         directory=context_dir, 
-        recursive=True)
+        recursive=False)
 
     context_table = context_db.get_table('context')
 
@@ -510,35 +510,7 @@ def doi_landing2(config_file, template_file, input_dir='.', output_dir='.', cont
         print(html.tostring(template, pretty_print=True))
 
 
-
-    
-def deletion_request_csv(input_file, output_dir='.', delete_browse=True):
-    """Accepts an input file generated from the PSA (<=6) table export
-    function and generates a PSA deletion request"""
-
-    products = pd.read_table(input_file, delimiter=',', header=0, dtype={'Version': str})
-    bundles = products['Dataset Identifier'].unique()
-    for bundle in bundles:
-        bundle_name = bundle.split(':')[-1]
-        request_time = datetime.datetime.now()
-        mission_name = bundle_name.split('_')[0]
-        deletion_name = '{:s}psa-pds4-pd-01-{:s}-{:s}'.format(mission_name, bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
-        outfile = os.path.join(output_dir, deletion_name + '.tab')
-        product_list = products[['LID','Version']].drop_duplicates(keep='first')
-        product_list.to_csv(outfile, sep='\t', index=False, header=False)
-        tarball = os.path.join(output_dir, deletion_name + '.tar.gz')
-        with tarfile.open(tarball, "w:gz") as tar:
-            tar.add(outfile, arcname=deletion_name + '.tab', recursive=False)
-
-    # For MCAM we need to delete browse also.
-    # We have LID like:
-    # urn:esa:psa:bc_mtm_mcam:data_raw:cam_raw_sc_cam3_image_20210810t232126_48_f__t0010
-    #
-    # And browse like:
-    # urn:esa:psa:bc_mtm_mcam:browse:cam_raw_sc_cam3_browse_20210810t232126_48_f__t0010
-
-
-def deletion_request_tap(query, dryrun=True, output_dir='.',
+def deletion_request(query, dryrun=True, output_dir='.', make_private=False, 
     tap_url='https://archives.esac.esa.int/psa-tap/tap', proxy=None):
     """
         Accepts either a single query (ADQL string) or a list of strings matching LIDs to delete.
@@ -548,6 +520,10 @@ def deletion_request_tap(query, dryrun=True, output_dir='.',
         When dryrun=True no deletion request will be made, but a list of matching products will
         be displayed.
     """
+
+    if make_private:
+        set_proprietary_date(query, end_date='2099-01-01', dryrun=dryrun, output_dir=output_dir,
+            tap_url=tap_url, proxy=proxy)
 
     if isinstance(query, str):
         query = [query]
@@ -598,6 +574,67 @@ def deletion_request_tap(query, dryrun=True, output_dir='.',
             tar.add(outfile, arcname=deletion_name + '.tab', recursive=False)
 
     return 
+
+
+def set_proprietary_date(query, end_date=None, dryrun=True, output_dir='.',
+                         tap_url='https://archives.esac.esa.int/psa-tap/tap', proxy=None):
+    """
+        Accepts an ADQL query or a list of LIDs to select products, and an end_date. For all matching products 
+        the specified end_date will be added to the corresponding LIDVIDs in an update delivery.
+    """
+
+    if isinstance(query, str):
+        query = [query]
+    elif isinstance(query, list):
+        pass
+    else:
+        log.error('query has to be either a string, or a list of strings')
+        return None
+        
+    t = tap.PsaTap(tap_url=tap_url, proxy=proxy)
+    results = []
+    for q in query:
+        try:
+            results.append(t.query(q))
+        except:
+            log.error('query error')
+            return None
+
+    if all(v is None for v in results):
+        log.warning('no matches found - no update request generated')
+        return None
+
+    results = pd.concat(results)
+
+    if not ('logical_identifier' and 'version_id') in results.columns:
+        log.error('query results do not contain logical_identifier and version_id columns')
+        return None
+
+    results['bundle'] = results.logical_identifier.apply(lambda lid: lid.split(':')[3])
+    bundles = results.bundle.unique()
+    if len(bundles)>1:
+        log.error('deletions from more than one bundle not allowed - make separate queries')
+        return None
+
+    bundle = bundles[0]
+    bundle_name = bundle.split(':')[-1]
+    request_time = datetime.datetime.now()
+    mission_name = bundle_name.split('_')[0]
+
+    if dryrun:
+        log.info('this request would set proprietary date {:s} for {:d} products'.format(end_date, len(results)))
+        # print(results[['logical_identifier','version_id']])
+        return results
+    else:
+        results['lidvid'] = results.logical_identifier + '::' + results.version_id
+        results['end_date'] = end_date
+        product_list = results[['lidvid', 'end_date']].drop_duplicates(keep='first')
+        update_name = '{:s}psa-pds4-pu-01-{:s}-{:s}'.format(mission_name, bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
+        outfile = os.path.join(output_dir, update_name + '.tab')
+        product_list.to_csv(outfile, sep='\t', index=False, header=False)
+        tarball = os.path.join(output_dir, update_name + '.tar.gz')
+        with tarfile.open(tarball, "w:gz") as tar:
+            tar.add(outfile, arcname=update_name + '.tab', recursive=False)
 
 
 
