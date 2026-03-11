@@ -379,13 +379,15 @@ def doi_landing(config_file, template_file, input_dir='.', input_pattern='collec
     mission_paths = {
         'em16': 'ExoMars2016',
         'bc': 'BepiColombo',
-        'juice': 'Juice'
+        'juice': 'Juice',
+        'ce6': "Chang'E-6"
     }
 
     mission_logos = {
         'em16': 'EXOMARS_logo.png',
         'bc': 'BEPICOLOMBO_logo.png',
-        'juice': 'JUICE_logo.png'
+        'juice': 'JUICE_logo.png',
+        'ce6': 'psa_generic.png'
     }
 
     split_threshold = 2000 # characters
@@ -510,7 +512,7 @@ def doi_landing2(config_file, template_file, input_dir='.', output_dir='.', cont
         print(html.tostring(template, pretty_print=True))
 
 
-def deletion_request(query, dryrun=True, output_dir='.', make_private=False, 
+def deletion_request(query, dryrun=True, output_dir='.', make_private=False, priority=False,
     tap_url='https://archives.esac.esa.int/psa-tap/tap', proxy=None):
     """
         Accepts either a single query (ADQL string) or a list of strings matching LIDs to delete.
@@ -559,7 +561,8 @@ def deletion_request(query, dryrun=True, output_dir='.', make_private=False,
     bundle_name = bundle.split(':')[-1]
     request_time = datetime.datetime.now()
     mission_name = bundle_name.split('_')[0]
-    deletion_name = '{:s}psa-pds4-pd-01-{:s}-{:s}'.format(mission_name, bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
+    priority_flag = '1' if priority else '0'
+    deletion_name = '{:s}psa-pds4-pd-{:s}0-{:s}-{:s}'.format(mission_name, priority_flag, bundle_name, request_time.strftime('%Y%m%dT%H%M%S'))
     outfile = os.path.join(output_dir, deletion_name + '.tab')
     product_list = results[['logical_identifier','version_id']].drop_duplicates(keep='first')
 
