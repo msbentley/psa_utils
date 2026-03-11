@@ -29,7 +29,8 @@ except ModuleNotFoundError:
 class Packager():
 
     def __init__(self, products='*.xml', input_dir='.', recursive=True, output_dir='.', template=None, 
-        use_dir=False, clean=True, sendfrom=None, sendto=None, allow_missing=False, bundle_delivery=False):
+        use_dir=False, clean=True, sendfrom=None, sendto=None, allow_missing=False, bundle_delivery=False,
+        priority=False):
         """Initialise the packager class. Accepts the following:
 
         products - file pattern to match labels (*.xml default)
@@ -47,6 +48,7 @@ class Packager():
         allow_missing - if true any missing data files will be ignored
             (useful when packaging a collection label without inventory)
         bundle_delivery - if true, the bundle delivery flag is set
+        priority - if true, high priority delivery will be created, otherwise standard
         """
 
         self.products = products
@@ -58,6 +60,7 @@ class Packager():
         self.data_files = {}
         self.allow_missing = allow_missing
         self.delivery_type = 'D' if bundle_delivery else 'P'
+        self.priority = priority
 
         # sequentially run everything we need to build the delivery package
         self.get_products()              # index the specified products, get bundle, collection, etc.
@@ -151,7 +154,9 @@ class Packager():
         if self.bundle=='psa_master':
             self.bundle='psa'
 
-        self.delivery_name = '{:s}{:s}-pds4-{:s}I-01-{:s}-{:s}'.format(sendfrom, sendto, self.delivery_type, self.bundle, self.delivery_time.strftime('%Y%m%dT%H%M%S'))
+        priority_flag = '1' if self.priority else '0'
+
+        self.delivery_name = '{:s}{:s}-pds4-{:s}I-{:s}0-{:s}-{:s}'.format(sendfrom, sendto, self.delivery_type, priority_flag, self.bundle, self.delivery_time.strftime('%Y%m%dT%H%M%S'))
 
 
     def build_paths(self):
@@ -178,20 +183,21 @@ class Packager():
 
     def create_transfer_manifest(self):
 
-        # create tab seaparated files
+        # create tab separated files
         manifest_file = self.delivery_name + '-transfer_manifest.tab'
         self.manifest_file = os.path.join(self.package_dir, manifest_file)
 
+        self.index['lidvid'] = self.index.lid + '::' + self.index.vid
         path_len = self.index.path.str.len().max()
-        lid_len = self.index.lid.str.len().max()
+        lidvid_len = self.index.lidvid.str.len().max()
         self.transfer_fields = {
             'lid_start': 1,
-            'lid_len': lid_len,
-            'path_start': lid_len + 1,
+            'lid_len': lidvid_len,
+            'path_start': lidvid_len + 1,
             'path_len': path_len}
 
         # pandas to_string does weird things and pads strings, so using numpy instead
-        np.savetxt(self.manifest_file, self.index[['lid','path']].values, fmt='%-{:d}s%-{:d}s'.format(lid_len+1, path_len), newline='\r\n')
+        np.savetxt(self.manifest_file, self.index[['lidvid','path']].values, fmt='%-{:d}s%-{:d}s'.format(lidvid_len+1, path_len), newline='\r\n')
 
         self.transfer_records =  len(self.index)
 
