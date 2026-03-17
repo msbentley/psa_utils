@@ -79,11 +79,11 @@ class Packager():
         self.create_package(clean=clean)            # copy files into correct structure and build tarball
 
 
-
     def get_products(self):
         """Obtain the list of products to be packaged and also list data products"""
 
         self.index = dbase.index_products(directory=self.input_dir, pattern=self.products, recursive=self.recursive)
+        self.index['lidvid'] = self.index.lid + '::' + self.index.vid
 
 
     def check_products(self):
@@ -100,7 +100,7 @@ class Packager():
             self.mission = self.bundle.split('_')[0]
 
         # check for duplicate products
-        if self.index.duplicated(['lid','vid']).sum() > 0:
+        if self.index.duplicated('lidvid').sum() > 0:
             log.error('duplicated product LIDVIDs in this package - aborting!')
             return False
 
@@ -116,7 +116,7 @@ class Packager():
 
             product_type = root.xpath('name(/*)', namespaces=ns)
             if not product_type.startswith('Product_'):
-                log.warn('XML file {:s} is not a PDS4 label, skipping'.format(product_file.name))
+                log.warning('XML file {:s} is not a PDS4 label, skipping'.format(product_file.name))
                 bad_products.append(idx)
                 continue
 
@@ -131,9 +131,9 @@ class Packager():
                     else:
                         log.error('cannot find data file {:s} referenced in product {:s}, aborting!'.format(data_file.text, product_file.name))
                         return False
-            self.data_files.update( {product.lid: [f.text for f in data_files if f not in missing_files]})
+            self.data_files.update( {product.lidvid: [f.text for f in data_files if f not in missing_files]})
         if len(bad_products)>0:
-            log.warn('{:d} products removed as invalid'.format(len(bad_products)))
+            log.warning('{:d} products removed as invalid'.format(len(bad_products)))
             self.index.drop(bad_products, inplace=True)
 
         return True
@@ -170,12 +170,12 @@ class Packager():
             if not self.use_dir:
                 # simply use the bundle/collection root
                 if product.collection is None:
-                    self.index.path.loc[idx] = os.path.join(product.bundle, label.name)
+                    self.index.loc[idx, 'path'] = os.path.join(product.bundle, label.name)
                 else:
-                    self.index.path.loc[idx] = os.path.join(product.bundle, product.collection, label.name)
+                    self.index.loc[idx, 'path'] = os.path.join(product.bundle, product.collection, label.name)
             else:
                 # use the path relative to the input directory
-                self.index.path.loc[idx] = os.path.join(product.bundle, os.path.relpath(label, start=self.input_dir))
+                self.index.loc[idx, 'path'] = os.path.join(product.bundle, os.path.relpath(label, start=self.input_dir))
 
         return
 
@@ -187,7 +187,6 @@ class Packager():
         manifest_file = self.delivery_name + '-transfer_manifest.tab'
         self.manifest_file = os.path.join(self.package_dir, manifest_file)
 
-        self.index['lidvid'] = self.index.lid + '::' + self.index.vid
         path_len = self.index.path.str.len().max()
         lidvid_len = self.index.lidvid.str.len().max()
         self.transfer_fields = {
@@ -216,7 +215,7 @@ class Packager():
             filepath.append(product.path)
 
             # add the data file checksums
-            for data_file in self.data_files[product.lid]:
+            for data_file in self.data_files[product.lidvid]:
                 data_file_absolute = os.path.join(pathlib.Path(product.filename).parent, data_file)
                 check.append(self.md5_hash(data_file_absolute))
                 filepath.append(os.path.join(pathlib.Path(product.path).parent, data_file))
@@ -304,7 +303,7 @@ class Packager():
             shutil.copy(product.filename, path)
 
             # copy the data files referenced
-            for data_file in self.data_files[product.lid]:
+            for data_file in self.data_files[product.lidvid]:
                 data_file_absolute = os.path.join(pathlib.Path(product.filename).parent, data_file)
                 shutil.copy(data_file_absolute, path)
 
