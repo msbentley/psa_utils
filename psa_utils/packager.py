@@ -169,7 +169,7 @@ class Packager():
 
             if not self.use_dir:
                 # simply use the bundle/collection root
-                if product.collection is None:
+                if product.product_type=='Product_Bundle':
                     self.index.loc[idx, 'path'] = os.path.join(product.bundle, label.name)
                 else:
                     self.index.loc[idx, 'path'] = os.path.join(product.bundle, product.collection, label.name)
