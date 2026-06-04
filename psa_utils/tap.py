@@ -19,7 +19,7 @@ from requests.exceptions import HTTPError
 
 job_wait_time = 2 # seconds
 job_wait_cycles = 10
-psa_tap_url = 'https://archives.esac.esa.int/psa-tap/tap/'
+psa_tap_url = 'https://psa.esa.int/psa-tap/tap/'
 import logging
 log = logging.getLogger(__name__)
 logging.getLogger("astroquery").setLevel(logging.WARNING)

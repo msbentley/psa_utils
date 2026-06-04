@@ -513,7 +513,7 @@ def doi_landing2(config_file, template_file, input_dir='.', output_dir='.', cont
 
 
 def deletion_request(query, dryrun=True, output_dir='.', make_private=False, priority=False,
-    tap_url='https://archives.esac.esa.int/psa-tap/tap', proxy=None):
+    tap_url='https://psa.esa.int/psa-tap/tap', proxy=None):
     """
         Accepts either a single query (ADQL string) or a list of strings matching LIDs to delete.
         Check_aux passes the query also to the auxiliary product table. Start and stop time will
@@ -580,7 +580,7 @@ def deletion_request(query, dryrun=True, output_dir='.', make_private=False, pri
 
 
 def set_proprietary_date(query, end_date=None, dryrun=True, output_dir='.',
-                         tap_url='https://archives.esac.esa.int/psa-tap/tap', proxy=None):
+                         tap_url='https://psa.esa.int/psa-tap/tap', proxy=None):
     """
         Accepts an ADQL query or a list of LIDs to select products, and an end_date. For all matching products 
         the specified end_date will be added to the corresponding LIDVIDs in an update delivery.
