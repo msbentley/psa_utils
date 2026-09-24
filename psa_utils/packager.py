@@ -78,7 +78,6 @@ class Packager():
         self.create_label(template=template)              # flesh out the template PDS4 label
         self.create_package(clean=clean)            # copy files into correct structure and build tarball
 
-
     def get_products(self):
         """Obtain the list of products to be packaged and also list data products"""
 
@@ -286,7 +285,7 @@ class Packager():
 
         # create a directory
         product_dir = os.path.join(self.package_dir, self.bundle)
-        os.makedirs(product_dir, exist_ok=True)
+        # os.makedirs(product_dir, exist_ok=True)
 
         for idx, product in self.index.iterrows():
 
